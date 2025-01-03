@@ -11,6 +11,8 @@ from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 import os
 
+import json
+
 load_dotenv(dotenv_path='tokens.env')
 
 discordBotToken = os.getenv('discordBotToken')
@@ -157,10 +159,17 @@ def get_image_urls_from_gallery(gallery_url):
     soup = BeautifulSoup(response.content, 'html.parser')
 
     image_urls = []
-    for img in soup.find_all('img'):
-        src = img.get('src')
-        if src and 'preview.redd.it' in src:
-            image_urls.append(src)
+    script_tag = soup.find('script', text=lambda t: t and 'window.___r' in t)
+    if script_tag:
+        #Extract the JSON data from the script tag
+        json_data = script_tag.string.split('=', 1)[1].strip(' ;')
+        data = json.loads(json_data)
+        #Navigate through the JSON to find the gallery images
+        media_metadata = data.get('media_metadata', {})
+        for item in media_metadata.values():
+            if 's' in item and 'u' in item['s']:
+                image_url = item['s']['u']
+                image_urls.append(image_url.replace('&amp;', '&'))
 
     return image_urls
 
